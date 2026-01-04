@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>Piham Simulator: Rosheeta's Wedding</title>
     <style>
-        /* CSS STYLES */
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', monospace; user-select: none; }
         
         #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -96,8 +95,14 @@
 
     </style>
 
-    <script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/three@0.147.0/examples/js/controls/PointerLockControls.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
 
 </head>
 <body>
@@ -157,7 +162,10 @@
         <button onclick="location.reload()" style="border-color:red; color:red;">TRY AGAIN</button>
     </div>
 
-    <script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
         // --- DATA ---
         const DAD_JOKES = [
             "What do you call a fake noodle? An Impasta.",
@@ -194,6 +202,13 @@
                 const {c, ctx} = this.createCanvas(512, 512, '#ffffff'); 
                 ctx.fillStyle = '#e0e0e0';
                 for(let i=0; i<4; i++) for(let j=0; j<4; j++) if((i+j)%2===0) ctx.fillRect(i*128, j*128, 128, 128);
+                const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(10, 15);
+                return t;
+            },
+            ceiling: function() {
+                const {c, ctx} = this.createCanvas(512, 512, '#333333');
+                ctx.fillStyle = '#444'; 
+                for(let i=0; i<1000; i++) ctx.fillRect(Math.random()*512, Math.random()*512, 2, 2);
                 const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(10, 15);
                 return t;
             },
@@ -256,7 +271,7 @@
             const amb = new THREE.AmbientLight(0xffffff, 0.6); scene.add(amb);
             const flashlight = new THREE.PointLight(0xffaa00, 1, 30); camera.add(flashlight); scene.add(camera);
 
-            controls = new THREE.PointerLockControls(camera, document.body);
+            controls = new PointerLockControls(camera, document.body);
 
             buildSomnathHeights();
             createAryan();
@@ -280,7 +295,7 @@
 
             const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 200), matFloor); floor.rotation.x = -Math.PI/2; scene.add(floor);
             
-            // SEGMENTED WALLS FOR DOORS
+            // SEGMENTED HALLWAY WALLS
             createWall(-15, -80, 2, 60, matWall); 
             createWall(-15, -25, 2, 20, matWall); 
             createWall(-15, 50, 2, 100, matWall); 
@@ -290,8 +305,8 @@
             createWall(0, 125, 32, 2, matWall);
 
             // ROOMS
-            createRoom(-25, -45, "101", 0xff0000, true); 
-            createRoom(-25, -10, "102", 0x0000ff, false); 
+            createRoom(-25, -45, "101", 0xff0000, true); // Kian
+            createRoom(-25, -10, "102", 0x0000ff, false); // Dimitri
             createRoom(25, 40, "104", 0x00ff00, false);   
         }
 
@@ -310,10 +325,12 @@
             const f = new THREE.Mesh(new THREE.PlaneGeometry(18, 18), matFloor);
             f.rotation.x = -Math.PI/2; f.position.set(x, 0.1, z); scene.add(f);
             
+            // Side Walls
             createWall(x > 0 ? x+15 : x-15, z, 2, 18, matWall);
             createWall(x, z-9, 18, 2, matWall);
             createWall(x, z+9, 18, 2, matWall);
             
+            // Door Gap
             const wallX = x > 0 ? x-15 : x+15;
             createWall(wallX, z-6, 2, 6, matWall);
             createWall(wallX, z+6, 2, 6, matWall);
@@ -377,6 +394,7 @@
             const joke = DAD_JOKES[Math.floor(Math.random() * DAD_JOKES.length)];
             showSubtitle("PIHAM", joke, "piham-style");
 
+            // DELAYED REACTION
             setTimeout(() => {
                 fireCringeNuke();
                 checkObjectives();
@@ -389,6 +407,7 @@
             ring.rotation.x = -Math.PI/2; ring.position.copy(camera.position); ring.position.y = 1;
             scene.add(ring); projectiles.push({ mesh: ring, scale: 1, age: 0 });
 
+            // Hit Patel
             if(camera.position.distanceTo(aryan.position) < 40) {
                 if(STATE.bossActive) {
                     STATE.hp -= 5; updateBossBar();
@@ -405,23 +424,28 @@
             const pPos = camera.position;
             roomTriggers.forEach(room => {
                 if(pPos.distanceTo(room.pos) < room.radius) {
+                    // Mission 1: Talk to Kian (Fake Birthday)
                     if(STATE.step === 0 && room.id === '101') {
                         STATE.step = 1; updateObjective();
                         showSubtitle("KIAN", "Dimi's Bday was 4 months ago! Go ruin his day!", "patel-style");
                     }
+                    // Mission 2: Tell Dimitri
                     else if(STATE.step === 1 && room.id === '102') {
                         STATE.step = 2; updateObjective();
                         showSubtitle("PIHAM", "Dimitri! Kian is pranking you. It's fake.", "piham-style");
                     }
+                    // Mission 3: Talk to Kian (Presentation)
                     else if(STATE.step === 2 && room.id === '101') {
                         STATE.step = 3; updateObjective();
                         showSubtitle("KIAN", "I swapped his slides with memes! Go watch!", "patel-style");
                     }
+                    // Mission 4: Tell Dimitri
                     else if(STATE.step === 3 && room.id === '102') {
                         STATE.step = 4; updateObjective();
                         showSubtitle("PIHAM", "Dimitri! Check your files! It's a prank!", "piham-style");
                     }
-                    else if(STATE.step === 4 && room.id === '104') {
+                    // Boss Fight
+                    else if(STATE.step === 4 && room.id === '104') { // Using empty room as trigger
                          startBossFight();
                     }
                 }
@@ -440,7 +464,13 @@
         }
 
         function updateObjective() {
-            const txt = ["TALK TO KIAN (ROOM 101)", "TELL DIMITRI (ROOM 102)", "RETURN TO KIAN (ROOM 101)", "WARN DIMITRI AGAIN (ROOM 102)", "STOP THE WEDDING (FIND KIAN)"];
+            const txt = [
+                "TALK TO KIAN (ROOM 101)",
+                "TELL DIMITRI (ROOM 102)",
+                "RETURN TO KIAN (ROOM 101)",
+                "WARN DIMITRI AGAIN (ROOM 102)",
+                "STOP THE WEDDING (FIND KIAN)"
+            ];
             document.getElementById('objective-box').innerText = "OBJ: " + txt[STATE.step];
         }
 
@@ -454,11 +484,12 @@
             const pct = Math.max(0, (STATE.hp / 100) * 100);
             document.getElementById('boss-fill').style.width = pct + "%";
             if(STATE.hp <= 0) {
-                document.getElementById('win-screen').style.display = 'flex';
+                document.getElementById('win-screen').style.display = 'flex'; // FAKE ENDING
                 controls.unlock();
             }
         }
 
+        // --- PHYSICS ---
         function updatePlayer() {
             const speed = 15;
             const dir = new THREE.Vector3();
@@ -478,6 +509,7 @@
             for(let wall of walls) { if(playerBox.intersectsBox(wall)) { collide = true; break; } }
             if(!collide) camera.position.add(moveVec);
             
+            // Safe Zone Logic
             let safe = false;
             for(let e of roomTriggers) if(camera.position.distanceTo(e.pos) < e.radius) safe = true;
             STATE.inSafeZone = safe;
@@ -489,7 +521,7 @@
                 const pPos = camera.position;
                 if(pPos.distanceTo(aryan.position) < 3) {
                     if(STATE.bossActive) {
-                         document.getElementById('lose-screen').style.display = 'flex';
+                         document.getElementById('lose-screen').style.display = 'flex'; // TRUE ENDING
                     } else {
                          document.getElementById('eaten-screen').style.display = 'flex';
                     }
@@ -497,7 +529,7 @@
                 }
                 
                 if(STATE.inSafeZone && !STATE.bossActive) {
-                    aryan.lookAt(pPos);
+                    aryan.lookAt(pPos); // Stare
                 } else {
                     const dir = new THREE.Vector3().subVectors(pPos, aryan.position).normalize();
                     aryan.position.add(dir.multiplyScalar(aryan.userData.speed));
@@ -506,6 +538,7 @@
             }
         }
 
+        // --- LOOP ---
         function animate() {
             requestAnimationFrame(animate);
             if(!STATE.isPlaying) return;
@@ -518,6 +551,7 @@
                 if(p.scale > 40) { scene.remove(p.mesh); projectiles.splice(i, 1); }
             });
             
+            // Minimap
             const ctx = document.getElementById('minimap').getContext('2d');
             ctx.fillStyle='#000'; ctx.fillRect(0,0,200,200);
             const p = camera.position;
